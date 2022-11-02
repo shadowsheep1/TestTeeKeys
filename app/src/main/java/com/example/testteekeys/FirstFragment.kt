@@ -5,15 +5,16 @@ import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.example.testteekeys.databinding.FragmentFirstBinding
 import java.security.*
+import java.security.spec.AlgorithmParameterSpec
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.InvalidKeySpecException
 
@@ -49,7 +50,10 @@ class FirstFragment : Fragment() {
                 keyPair = generateKeyPair()
             }
             printKeyInfo(keyPair.private)
-            println("privateKey: ${keyPair.private}, publicKey: ${keyPair.public}")
+            println(
+                "privateKey: ${keyPair.private.encoded}, "
+                        + "publicKey: ${keyPair.public.encoded}"
+            )
         } else {
             Toast.makeText(requireContext(), "Cannot use KeyStore", Toast.LENGTH_LONG).show()
         }
@@ -64,7 +68,8 @@ class FirstFragment : Fragment() {
     private fun printKeyInfo(key: PrivateKey) {
         val factory = KeyFactory.getInstance(
             key.algorithm,
-            KeyConfig.EC_P_256.provider)
+            keyConfig.provider
+        )
         val keyInfo: KeyInfo
         try {
             keyInfo = factory.getKeySpec(key, KeyInfo::class.java)
@@ -87,51 +92,74 @@ class FirstFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.M)
     private fun generateKeyPair(): KeyPair {
         val keyPairGenerator = KeyPairGenerator.getInstance(
-            KeyProperties.KEY_ALGORITHM_EC, KeyConfig.EC_P_256.provider
+            keyConfig.algorithm,
+            keyConfig.provider
         )
-        keyPairGenerator.initialize(
-            KeyGenParameterSpec.Builder(
-                KeyConfig.EC_P_256.alias, KeyProperties.PURPOSE_SIGN
-            ).setAlgorithmParameterSpec(
-                    ECGenParameterSpec(KeyConfig.EC_P_256.algorithm)
-                ).setDigests(
-                    KeyProperties.DIGEST_SHA256,
-                    KeyProperties.DIGEST_SHA384,
-                    KeyProperties.DIGEST_SHA512
-                )
-                // Only permit the private key to be used if the user authenticated
-                // within the last five minutes.
-                //.setUserAuthenticationRequired(true)
-                //.setUserAuthenticationValidityDurationSeconds(5 * 60)
-                .build()
-        )
+        val keySpec: AlgorithmParameterSpec
+        KeyGenParameterSpec.Builder(
+                keyConfig.alias, KeyProperties.PURPOSE_SIGN
+        ).apply {
+            keyConfig.algorithmParam?.let {
+                if (keyConfig == KeyConfig.EC_P_256) {
+                    setAlgorithmParameterSpec(ECGenParameterSpec(it))
+                }
+            }
+            setDigests(
+                KeyProperties.DIGEST_SHA256,
+                //KeyProperties.DIGEST_SHA384,
+                KeyProperties.DIGEST_SHA512
+            )
+            // Only permit the private key to be used if the user authenticated
+            // within the last five minutes.
+            //.setUserAuthenticationRequired(true)
+            //.setUserAuthenticationValidityDurationSeconds(5 * 60)
+            keySpec = build()
+        }
+        keyPairGenerator.initialize(keySpec)
         val keyPair = keyPairGenerator.generateKeyPair()
-        val signature = Signature.getInstance(KeyConfig.EC_P_256.signature)
+        val signature = Signature.getInstance(keyConfig.signature)
         signature.initSign(keyPair.private)
 
         return keyPair
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     private fun getKeyPair(): KeyPair? {
         // The key pair can also be obtained from the Android Keystore any time as follows:
-        val keyStore = KeyStore.getInstance(KeyConfig.EC_P_256.provider)
+        val keyStore = KeyStore.getInstance(keyConfig.provider)
         keyStore.load(null)
-        val privateKey = keyStore.getKey(KeyConfig.EC_P_256.alias, null) as? PrivateKey
+        val privateKey = keyStore.getKey(keyConfig.alias, null) as? PrivateKey
         privateKey?.also {
-            val publicKey = keyStore.getCertificate(KeyConfig.EC_P_256.alias).publicKey
+            val publicKey = keyStore.getCertificate(keyConfig.alias).publicKey
             return KeyPair(publicKey, it)
         }
         return null
     }
 
     companion object {
+        @RequiresApi(Build.VERSION_CODES.M)
+        private val keyConfig = KeyConfig.RSA
+
+        @RequiresApi(Build.VERSION_CODES.M)
         private enum class KeyConfig(
-            val alias: String, val algorithm: String, val signature: String, val provider: String
+            val alias: String,
+            val algorithm: String,
+            val algorithmParam: String?,
+            val signature: String,
+            val provider: String
         ) {
             EC_P_256(
-                alias = "key1",
-                algorithm = "secp256r1",
+                alias = "keyEC",
+                algorithm = KeyProperties.KEY_ALGORITHM_EC,
+                algorithmParam = "secp256r1",
                 signature = "SHA256withECDSA",
+                provider = "AndroidKeyStore"
+            ),
+            RSA(
+                alias = "keyRSA",
+                algorithm = KeyProperties.KEY_ALGORITHM_RSA,
+                algorithmParam = null,
+                signature = "SHA256withRSA/PSS",
                 provider = "AndroidKeyStore"
             )
         }

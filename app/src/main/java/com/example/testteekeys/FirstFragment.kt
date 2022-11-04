@@ -94,6 +94,9 @@ class FirstFragment : Fragment() {
         st.initVerify(publicKey)
         println("Public key export: ${Base64.encodeToString(publicKey.encoded, Base64.DEFAULT)}")
         println("Public key format: ${publicKey.format}")
+        println("${keyConfig.hash}: ${
+            Base64.encodeToString(hashString(message, keyConfig.hash), Base64.NO_WRAP)
+        }")
         val digestBytes = Base64.decode(digest, Base64.NO_WRAP)
         st.update(sampleDataBytes)
         return st.verify(digestBytes)

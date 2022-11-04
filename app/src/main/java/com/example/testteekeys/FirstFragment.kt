@@ -11,12 +11,12 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import com.example.testteekeys.databinding.FragmentFirstBinding
 import java.security.*
 import java.security.spec.AlgorithmParameterSpec
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.InvalidKeySpecException
+import android.util.Base64
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -45,7 +45,9 @@ class FirstFragment : Fragment() {
 
         binding.buttonFirst.setOnClickListener {
             //findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
-            runExample()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                runExample()
+            }
         }
     }
 
@@ -67,6 +69,7 @@ class FirstFragment : Fragment() {
                 keyPair = generateKeyPair()
             }
             printKeyInfo(keyPair.private)
+            signSampleData(keyPair.private, sampleData)
             println(
                 "privateKey: ${keyPair.private.encoded}, "
                         + "publicKey: ${keyPair.public.encoded}"
@@ -74,6 +77,22 @@ class FirstFragment : Fragment() {
         } else {
             Toast.makeText(requireContext(), "Cannot use KeyStore", Toast.LENGTH_LONG).show()
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun signSampleData(privateKey: PrivateKey, message: String): String {
+        val sampleDataBytes = message.toByteArray()
+        // https://docs.oracle.com/javase/8/docs/technotes/guides/security/StandardNames.html#Signature
+        val signatureAlgorithm = keyConfig.signature
+        println("signature algorithm: $signatureAlgorithm")
+        val signatureEngine = Signature.getInstance(signatureAlgorithm)
+        signatureEngine.initSign(privateKey)
+        signatureEngine.update(sampleDataBytes)
+        val signatureBytes = signatureEngine.sign()
+
+        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
+        println("Signature base64 = $signatureBase64")
+        return signatureBase64
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -109,7 +128,7 @@ class FirstFragment : Fragment() {
         )
         val keySpec: AlgorithmParameterSpec
         KeyGenParameterSpec.Builder(
-                keyConfig.alias, KeyProperties.PURPOSE_SIGN
+            keyConfig.alias, KeyProperties.PURPOSE_SIGN
         ).apply {
             keyConfig.algorithmParam?.let {
                 if (keyConfig == KeyConfig.EC_P_256) {
@@ -121,6 +140,11 @@ class FirstFragment : Fragment() {
                 //KeyProperties.DIGEST_SHA384,
                 KeyProperties.DIGEST_SHA512
             )
+            // https://www.mail-archive.com/android-developers@googlegroups.com/msg241873.html
+            // Caused by: java.security.InvalidKeyException: Keystore operation failed
+            // android.security.KeyStoreException: Incompatible padding mode
+            //setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+            setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PSS)
             // Only permit the private key to be used if the user authenticated
             // within the last five minutes.
             //.setUserAuthenticationRequired(true)
@@ -149,6 +173,8 @@ class FirstFragment : Fragment() {
     }
 
     companion object {
+        private const val sampleData = "Lorem ipsum bubulo bibi!"
+
         @RequiresApi(Build.VERSION_CODES.M)
         private enum class KeyConfig(
             val alias: String,

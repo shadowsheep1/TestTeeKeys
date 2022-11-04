@@ -92,6 +92,8 @@ class FirstFragment : Fragment() {
         println("signature algorithm: $signatureAlgorithm")
         val st = Signature.getInstance(signatureAlgorithm)
         st.initVerify(publicKey)
+        println("Public key export: ${Base64.encodeToString(publicKey.encoded, Base64.DEFAULT)}")
+        println("Public key format: ${publicKey.format}")
         val digestBytes = Base64.decode(digest, Base64.NO_WRAP)
         st.update(sampleDataBytes)
         return st.verify(digestBytes)

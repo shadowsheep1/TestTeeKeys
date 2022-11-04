@@ -92,9 +92,15 @@ class FirstFragment : Fragment() {
         println("signature algorithm: $signatureAlgorithm")
         val st = Signature.getInstance(signatureAlgorithm)
         st.initVerify(publicKey)
-        val digestBytes = Base64.decode(digest, Base64.NO_PADDING)
-        st.update(digestBytes)
-        return st.verify(sampleDataBytes)
+        val digestBytes = Base64.decode(digest, Base64.NO_WRAP)
+        st.update(sampleDataBytes)
+        return st.verify(digestBytes)
+    }
+
+    // https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest
+    private fun hashString(input: String, algorithm: String): ByteArray    {
+        return MessageDigest.getInstance(algorithm)
+            .digest(input.toByteArray())
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -108,7 +114,7 @@ class FirstFragment : Fragment() {
         signatureEngine.update(sampleDataBytes)
         val signatureBytes = signatureEngine.sign()
 
-        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_PADDING)
+        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_WRAP)
         println("Signature base64 = $signatureBase64")
         return signatureBase64
     }
@@ -199,6 +205,7 @@ class FirstFragment : Fragment() {
             val algorithm: String,
             val algorithmParam: String?,
             val signature: String,
+            val hash: String,
             val provider: String
         ) {
             EC_P_256(
@@ -206,6 +213,7 @@ class FirstFragment : Fragment() {
                 algorithm = KeyProperties.KEY_ALGORITHM_EC,
                 algorithmParam = "secp256r1",
                 signature = "SHA256withECDSA",
+                hash = "SHA-256",
                 provider = "AndroidKeyStore"
             ),
             RSA(
@@ -213,6 +221,7 @@ class FirstFragment : Fragment() {
                 algorithm = KeyProperties.KEY_ALGORITHM_RSA,
                 algorithmParam = null,
                 signature = "SHA256withRSA/PSS",
+                hash = "SHA-256",
                 provider = "AndroidKeyStore"
             )
         }

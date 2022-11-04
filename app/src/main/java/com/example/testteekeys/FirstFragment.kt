@@ -25,6 +25,9 @@ class FirstFragment : Fragment() {
 
     private var _binding: FragmentFirstBinding? = null
 
+    @RequiresApi(Build.VERSION_CODES.M)
+    private var keyConfig = KeyConfig.EC_P_256
+
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
@@ -41,9 +44,23 @@ class FirstFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.buttonFirst.setOnClickListener {
-            findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+            //findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+            runExample()
         }
+    }
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun runExample() {
+        keyConfig = if (binding.ecKeyButton.isChecked) {
+            KeyConfig.EC_P_256
+        } else {
+            KeyConfig.RSA
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             var keyPair = getKeyPair()
             if (keyPair == null) {
@@ -57,11 +74,6 @@ class FirstFragment : Fragment() {
         } else {
             Toast.makeText(requireContext(), "Cannot use KeyStore", Toast.LENGTH_LONG).show()
         }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -137,9 +149,6 @@ class FirstFragment : Fragment() {
     }
 
     companion object {
-        @RequiresApi(Build.VERSION_CODES.M)
-        private val keyConfig = KeyConfig.RSA
-
         @RequiresApi(Build.VERSION_CODES.M)
         private enum class KeyConfig(
             val alias: String,

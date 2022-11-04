@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
+import android.util.Base64
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,7 +17,6 @@ import java.security.*
 import java.security.spec.AlgorithmParameterSpec
 import java.security.spec.ECGenParameterSpec
 import java.security.spec.InvalidKeySpecException
-import android.util.Base64
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -69,7 +69,9 @@ class FirstFragment : Fragment() {
                 keyPair = generateKeyPair()
             }
             printKeyInfo(keyPair.private)
-            signSampleData(keyPair.private, sampleData)
+            val base64Digest = signSampleData(keyPair.private, sampleMessage)
+            val signIsVerified = verifySignature(keyPair.public, base64Digest, sampleMessage)
+            println("Sign verified? $signIsVerified")
             println(
                 "privateKey: ${keyPair.private.encoded}, "
                         + "publicKey: ${keyPair.public.encoded}"
@@ -77,6 +79,22 @@ class FirstFragment : Fragment() {
         } else {
             Toast.makeText(requireContext(), "Cannot use KeyStore", Toast.LENGTH_LONG).show()
         }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.M)
+    private fun verifySignature(
+        publicKey: PublicKey,
+        digest: String,
+        message: String
+    ): Boolean {
+        val sampleDataBytes = message.toByteArray()
+        val signatureAlgorithm = keyConfig.signature
+        println("signature algorithm: $signatureAlgorithm")
+        val st = Signature.getInstance(signatureAlgorithm)
+        st.initVerify(publicKey)
+        val digestBytes = Base64.decode(digest, Base64.NO_PADDING)
+        st.update(digestBytes)
+        return st.verify(sampleDataBytes)
     }
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -90,7 +108,7 @@ class FirstFragment : Fragment() {
         signatureEngine.update(sampleDataBytes)
         val signatureBytes = signatureEngine.sign()
 
-        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.DEFAULT)
+        val signatureBase64 = Base64.encodeToString(signatureBytes, Base64.NO_PADDING)
         println("Signature base64 = $signatureBase64")
         return signatureBase64
     }
@@ -173,7 +191,7 @@ class FirstFragment : Fragment() {
     }
 
     companion object {
-        private const val sampleData = "Lorem ipsum bubulo bibi!"
+        private const val sampleMessage = "Lorem ipsum bubulo bibi!"
 
         @RequiresApi(Build.VERSION_CODES.M)
         private enum class KeyConfig(

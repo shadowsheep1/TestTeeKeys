@@ -20,9 +20,11 @@ import java.security.spec.InvalidKeySpecException
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
+ * https://android.googlesource.com/platform/frameworks/base/+/master/keystore/java/android/security/keystore/KeyProtection.java
+ * https://developer.android.com/training/articles/keystore
+ * isInsideSecureHw -> Api level 23 (M) - https://developer.android.com/reference/android/security/keystore/KeyInfo#isInsideSecureHardware()
  */
 class FirstFragment : Fragment() {
-
     private var _binding: FragmentFirstBinding? = null
 
     @RequiresApi(Build.VERSION_CODES.M)
@@ -135,6 +137,7 @@ class FirstFragment : Fragment() {
             keyInfo = factory.getKeySpec(key, KeyInfo::class.java)
             println("Alias: ${keyInfo.keystoreAlias}")
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                // https://developer.android.com/reference/android/security/keystore/KeyProperties#SECURITY_LEVEL_SOFTWARE
                 println("Hardware-backed: ${keyInfo.securityLevel}")
             } else {
                 @Suppress("DEPRECATION")
